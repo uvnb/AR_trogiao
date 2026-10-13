@@ -4,6 +4,8 @@ const VISION = '../node_modules/@mediapipe/tasks-vision/vision_bundle.mjs';
 const WASM = 'node_modules/@mediapipe/tasks-vision/wasm';
 const MODEL = 'models/hand_landmarker.task';
 
+const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 export class HandCamera {
   constructor(video, { facingMode = 'environment' } = {}) {
     this.video = video;
@@ -26,8 +28,8 @@ export class HandCamera {
     onStatus('Requesting camera…');
     this.stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
+        width: { ideal: isMobile ? 640 : 1280 },
+        height: { ideal: isMobile ? 480 : 720 },
         facingMode: { ideal: this.facingMode },
         frameRate: { ideal: 30 }
       },
@@ -54,9 +56,11 @@ export class HandCamera {
   poll() {
     const v = this.video;
     if (!this.running || v.readyState < 2 || v.currentTime === this.lastVideoTime) return undefined;
+    const now = performance.now();
+    if (isMobile && now - this.lastTs < 32) return undefined;
     this.lastVideoTime = v.currentTime;
     this.newFrame = true;
-    const ts = Math.max(Math.round(performance.now()), this.lastTs + 1);      // must strictly increase
+    const ts = Math.max(Math.round(now), this.lastTs + 1);      // must strictly increase
     this.lastTs = ts;
     const t0 = performance.now();
     const res = this.landmarker.detectForVideo(v, ts);

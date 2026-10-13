@@ -9,3 +9,9 @@ screenshots/
 Thumbs.db
 *.log
 .env
+apk_out/
+apk_v101/
+dist_v101/
+dist_v101_fixed/
+v101.zip
+www/

@@ -22,12 +22,15 @@ const HAND_PITCH_GAIN = 2.5;   // raising / lowering the hand by 10 % of the fra
 const DWELL_S = 0.45;          // point at a part this long to select it
 const QUIZ_LEN = 5;
 
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (typeof window !== 'undefined' && (window.innerWidth <= 820 || window.innerHeight <= 520));
+const defaultN = isMobile ? 60000 : 200000;
+
 const CFG = {
-  n: clamp(parseInt(qs.get('n'), 10) || 200000, 5000, 1000000),
+  n: clamp(parseInt(qs.get('n'), 10) || defaultN, 5000, 1000000),
   manual: qs.get('manual') === '1',             // tests: deterministic clock, frames only via wonderSnap.advance()
   autostart: qs.get('autostart'),                // 'camera' | 'nocamera'
   start: clamp(parseInt(qs.get('model'), 10) || 0, 0, CATALOG.length - 1),
-  dpr: qs.get('dpr') ? parseFloat(qs.get('dpr')) : Math.min(window.devicePixelRatio || 1, 2),
+  dpr: qs.get('dpr') ? parseFloat(qs.get('dpr')) : (isMobile ? 1.0 : Math.min(window.devicePixelRatio || 1, 2)),
   trails: qs.get('trails') !== '0',
 };
 
@@ -614,6 +617,13 @@ class App {
       chips.appendChild(b); this.chips[i] = b;
     });
     this.showCategory(this.activeCat);
+    const bToggle = this.$('bTogglePanel');
+    const panel = this.$('panel');
+    if (bToggle && panel) {
+      bToggle.addEventListener('click', () => {
+        panel.classList.toggle('collapsed');
+      });
+    }
   }
   showCategory(c) {
     this.activeCat = c;
@@ -692,7 +702,11 @@ class App {
     }
     const cam = this.cam?.running ? `cam <b>${this.cam.fps.toFixed(0)}</b> fps · hands ${this.cam.delegate} ${this.cam.detectMs.toFixed(0)} ms` : 'camera off';
     const extra = [Math.abs(this.zoom - 1) > 0.02 ? `zoom <b>${this.zoom.toFixed(2)}×</b>` : '', this.recorder.on ? `<span class="rec">● REC ${this.recorder.seconds().toFixed(0)} s</span>` : '', this.voiceOn ? '🎤 listening' : ''].filter(Boolean).join(' · ');
-    $('stats').innerHTML = `<b>${this.fps.toFixed(0)}</b> fps · <b>${(CFG.n / 1000).toFixed(0)}k</b> particles<br>${cam}${extra ? '<br>' + extra : ''}`;
+    if (isMobile) {
+      $('stats').innerHTML = `<b>${this.fps.toFixed(0)}</b> fps · <b>${(CFG.n / 1000).toFixed(0)}k</b> particles`;
+    } else {
+      $('stats').innerHTML = `<b>${this.fps.toFixed(0)}</b> fps · <b>${(CFG.n / 1000).toFixed(0)}k</b> particles<br>${cam}${extra ? '<br>' + extra : ''}`;
+    }
     for (const e of st.events.splice(0)) {
       const name = CATALOG[st.index].name;
       if (e === 'snap') this.toast('🫰 Snap! Particles summoned');
@@ -794,6 +808,14 @@ class App {
       }
     });
     this.canvas.addEventListener('pointerup', (e) => {
+      if (this.vrMode) {
+        if (drag && !drag.moved) {
+          this.selectModel(this.ctl.state.index + 1, true);
+          this.toast(`Next: ${CATALOG[this.ctl.state.index].name}`);
+        }
+        drag = null;
+        return;
+      }
       if (drag && !drag.moved && this.anchors.length) {             // click = pick the nearest part
         const [x, y] = px(e), li = this.nearestAnchor(x, y, 70 * CFG.dpr);
         if (li >= 0) this.selectPart(li, 'click'); else if (!this.quiz) this.deselect();
@@ -811,9 +833,11 @@ class App {
     this.$('bCalib').hidden = !this.vrMode;
 
     if (this.vrMode) {
+      // Auto-form the model immediately so particles are visible in VR!
+      this.selectModel(this.ctl.state.index, true);
       // Start gyroscope
       await this.gyro.start();
-      this.toast('🥽 VR Mode active (Side-by-Side 3D). Put phone into VR headset!');
+      this.toast('🥽 VR Mode active (Side-by-Side 3D). Tap screen to switch model.');
       // Request fullscreen on mobile
       try {
         if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
@@ -909,13 +933,15 @@ function boot() {
   const onStartCam = async (e) => {
     e?.preventDefault();
     hideStart();
+    app.selectModel(app.ctl.state.index, true);
     await app.startCamera('user');
   };
 
   const onStartNoCam = (e) => {
     e?.preventDefault();
     hideStart();
-    app.toast('Keyboard: Space = snap · F = fist · O = open · E = explode · D = demo · H = help');
+    app.selectModel(app.ctl.state.index, true);
+    app.toast('Space = snap · F = fist · O = open · E = explode · D = demo · H = help');
   };
 
   if (bVR) {

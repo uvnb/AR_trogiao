@@ -1,6 +1,6 @@
 {
   "name": "wondersnap",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Gesture-controlled 3D wonders, engines and cars made of glowing GPU particles (MediaPipe + WebGL2).",
   "type": "module",
   "engines": {
