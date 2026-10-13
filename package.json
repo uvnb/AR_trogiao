@@ -11,9 +11,18 @@
     "test": "playwright test",
     "test:report": "playwright show-report"
   },
-  "keywords": ["mediapipe", "webgl2", "particles", "hand-tracking", "gestures"],
+  "keywords": [
+    "mediapipe",
+    "webgl2",
+    "particles",
+    "hand-tracking",
+    "gestures"
+  ],
   "license": "MIT",
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
     "@mediapipe/tasks-vision": "^1.0.1"
   },
   "devDependencies": {

@@ -25,4 +25,5 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain' }).end('not found');
   }
-}).listen(PORT, () => console.log(`WonderSnap running at http://localhost:${PORT}`));
+}).listen(PORT, '0.0.0.0', () => console.log(`WonderSnap running at http://localhost:${PORT}`));
+

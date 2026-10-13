@@ -101,6 +101,8 @@
       <button id="bVoice" class="icon" title="Voice commands + read aloud (M)">🎤</button>
       <button id="bRec" class="icon" title="Record a video (K)">⏺</button>
       <button id="bDemo" class="icon" title="Play demo (D)">▶</button>
+      <button id="bVR" class="icon" title="VR Mode (Side-by-Side 3D)">🥽</button>
+      <button id="bCalib" class="icon" title="Calibrate Head Tracking (Reset View)" hidden>🎯</button>
       <button id="bHelp" class="icon" title="Keyboard help (H)">?</button>
     </div>
   </div>
@@ -139,7 +141,8 @@
         <li>Show <b>✌</b> to jump to the next model.</li>
       </ol>
       <div class="start-buttons">
-        <button id="bStartCam" class="primary">Start with camera</button>
+        <button id="bStartVR" class="primary" style="background: linear-gradient(135deg, #a855f7, #6366f1); border-color: #c084fc;">🥽 Start in VR Mode (Cardboard / Phone)</button>
+        <button id="bStartCam">Start with camera</button>
         <button id="bStartNoCam">Continue without camera</button>
       </div>
       <p id="startMsg" class="start-msg"></p>

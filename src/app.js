@@ -11,6 +11,7 @@ import { HandCamera } from './hands.js';
 import { hand as synthHand } from './logic/synth.js';
 import { rotX, rotY, matMul, matVec, deg } from './lib/vec.js';
 import { parseCommand, Voice, speak, Recorder } from './features.js';
+import { Gyro } from './gyro.js';
 
 const qs = new URLSearchParams(location.search);
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -138,6 +139,11 @@ class App {
     this.autoFormAt = null; this.hudTick = 0; this.lastIndexShown = -1; this.sliderActive = false;
     this.activeCat = CATALOG[CFG.start].category;
     this.gain = clamp(0.22 * Math.sqrt(250000 / CFG.n), 0.15, 0.6);
+    this.vrMode = false;
+    this.gyro = new Gyro();
+    this.headYaw = 0;
+    this.headPitch = 0;
+    this.cameraFacing = 'environment';
     this.resize();
     addEventListener('resize', () => this.resize());
     this.buildUI();
@@ -150,11 +156,18 @@ class App {
   resize() {
     const w = innerWidth, h = innerHeight, dpr = CFG.dpr;
     for (const c of [this.canvas, this.overlay]) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
-    const aspect = w / h, wide = aspect > 1.25 && w > 820;
-    this.offX = wide ? 0.9 * Math.min(1.15, aspect / 1.78) : 0;       // the model sits in the right third (like the demo)
-    this.offY = wide ? 0 : 0.22;
+    const aspect = w / h, wide = !this.vrMode && aspect > 1.25 && w > 820;
+    this.offX = wide ? 0.9 * Math.min(1.15, aspect / 1.78) : 0;       // in VR, keep model centered
+    this.offY = wide ? 0 : (this.vrMode ? 0 : 0.22);
     this.dist = Math.max(3.4, 1.25 / (Math.tan((20 * Math.PI) / 180) * aspect));
-    this.proj = perspective(40, aspect, 0.05, 30);
+
+    if (this.vrMode) {
+      // Each eye has half the width, so effective aspect is (w/2) / h
+      const eyeAspect = (w / 2) / h;
+      this.proj = perspective(50, eyeAspect, 0.05, 30);
+    } else {
+      this.proj = perspective(40, aspect, 0.05, 30);
+    }
     this.projView = mul4(this.proj, translate4(this.offX, this.offY, -this.dist));
   }
 
@@ -261,8 +274,28 @@ class App {
     this.scale = m ? 1 + (m.fitScale - 1) * this.explode : 1;
     const scale = this.scale * this.pulse;
     const exCenter = m ? m.exCenter : [0, 0, 0];
-    // while exploded, slide the model toward the middle so both label columns have room
-    this.projView = mul4(this.proj, translate4(this.offX * (1 - 0.45 * this.explode), this.offY, -this.dist / this.zoom));
+    // Gyroscope delta if active
+    if (this.vrMode && this.gyro?.active) {
+      const g = this.gyro.getDelta();
+      this.headYaw = g.yaw;
+      this.headPitch = g.pitch;
+    }
+
+    // Base view translation
+    const viewTrans = translate4(this.offX * (1 - 0.45 * this.explode), this.offY, -this.dist / this.zoom);
+
+    if (this.vrMode) {
+      const eyeHalf = 0.035; // ~3.5 cm stereo baseline per eye
+      // Apply head rotation from gyroscope
+      const headRotM = mul4(rotY4(-this.headYaw), rotX(-this.headPitch));
+      const eyeL = mul4(translate4( eyeHalf, 0, 0), mul4(headRotM, viewTrans));
+      const eyeR = mul4(translate4(-eyeHalf, 0, 0), mul4(headRotM, viewTrans));
+      this.projView = mul4(this.proj, eyeL);
+      this.projViewL = mul4(this.proj, eyeL);
+      this.projViewR = mul4(this.proj, eyeR);
+    } else {
+      this.projView = mul4(this.proj, viewTrans);
+    }
 
     // 7. parts: screen anchors, point-to-pick (dwell), pinch-to-pull, quiz, cut-away plane
     this.computeAnchors(formed && machine && m, rot, exCenter, scale);
@@ -289,8 +322,16 @@ class App {
     this.tintMix += (tintT - this.tintMix) * (1 - Math.exp(-dt * 5));
     const alpha = st.alpha(t);
 
+    const globeRot = rotY4(0.1 * t);
     this.renderer.draw({
-      projView: this.projView, globeMvp: mul4(this.projView, rotY4(0.1 * t)), color: this.color, tintMix: this.tintMix,
+      stereo: this.vrMode,
+      projView: this.projView,
+      projViewL: this.projViewL,
+      projViewR: this.projViewR,
+      globeMvp: mul4(this.projView, globeRot),
+      globeMvpL: this.projViewL ? mul4(this.projViewL, globeRot) : null,
+      globeMvpR: this.projViewR ? mul4(this.projViewR, globeRot) : null,
+      color: this.color, tintMix: this.tintMix,
       alpha, trails: this.trails, trailLen: 0.06, pointPx: this.canvas.height * 0.012 * Math.sqrt(this.zoom), gain: this.gain,
       video: { has: this.hasVideo && this.camOn, dim: 0.65 }, sel, cutOn: this.cut.on && formed, cut: this.cut.x, flow: this.flow, time: t,
     });
@@ -727,6 +768,8 @@ class App {
     $('bQuiz').onclick = () => { if (this.quiz) this.stopQuiz(); else this.startQuiz(); };
     $('bVoice').onclick = () => this.toggleVoice();
     $('bRec').onclick = () => this.toggleRecord();
+    $('bVR').onclick = () => this.toggleVR();
+    $('bCalib').onclick = () => this.calibrateGyro();
     $('bHelp').onclick = () => { $('help').hidden = !$('help').hidden; };
     $('partClose').onclick = () => this.deselect();
     $('partPull').onclick = () => { if (this.sel >= 0) this.pulled = !this.pulled; };
@@ -761,13 +804,50 @@ class App {
 
   toggle(prop, btn) { this[prop] = !this[prop]; this.$(btn).classList.toggle('on', this[prop]); }
 
-  async startCamera() {
+  async toggleVR() {
+    this.vrMode = !this.vrMode;
+    document.body.classList.toggle('vr-mode', this.vrMode);
+    this.$('bVR').classList.toggle('on', this.vrMode);
+    this.$('bCalib').hidden = !this.vrMode;
+
+    if (this.vrMode) {
+      // Start gyroscope
+      await this.gyro.start();
+      this.toast('🥽 VR Mode active (Side-by-Side 3D). Put phone into VR headset!');
+      // Request fullscreen on mobile
+      try {
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+        }
+        if (screen.orientation?.lock) {
+          await screen.orientation.lock('landscape').catch(() => {});
+        }
+      } catch (e) { /* ignore fullscreen errors */ }
+    } else {
+      this.gyro.stop();
+      this.toast('Standard screen mode');
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+    this.resize();
+  }
+
+  calibrateGyro() {
+    this.gyro.calibrate();
+    this.headYaw = 0;
+    this.headPitch = 0;
+    this.toast('🎯 View calibrated');
+  }
+
+  async startCamera(facing = this.cameraFacing) {
     const msg = this.$('startMsg');
     try {
-      this.cam = this.cam || new HandCamera(this.video);
+      this.cameraFacing = facing;
+      this.cam = this.cam || new HandCamera(this.video, { facingMode: facing });
       await this.cam.start((s) => { msg.textContent = s; if (s) this.toast(s); });
       this.camOn = true; this.$('bCam').classList.add('on');
-      this.toast('📷 Camera on — snap your fingers!');
+      this.toast(`📷 Camera on (${facing}) — snap your fingers!`);
       return true;
     } catch (e) {
       console.error(e);
@@ -813,7 +893,15 @@ function boot() {
   }
   const start = document.getElementById('start');
   const hideStart = () => { start.hidden = true; };
-  document.getElementById('bStartCam').onclick = async () => { if (await app.startCamera()) hideStart(); };
+  const bVR = document.getElementById('bStartVR');
+  if (bVR) {
+    bVR.onclick = async () => {
+      hideStart();
+      await app.startCamera('environment');
+      await app.toggleVR();
+    };
+  }
+  document.getElementById('bStartCam').onclick = async () => { if (await app.startCamera('user')) hideStart(); };
   document.getElementById('bStartNoCam').onclick = () => { hideStart(); app.toast('Keyboard: Space = snap · F = fist · O = open · E = explode · D = demo · H = help'); };
   if (CFG.autostart === 'camera') { hideStart(); app.startCamera(); }
   else if (CFG.autostart === 'nocamera' || CFG.manual) hideStart();

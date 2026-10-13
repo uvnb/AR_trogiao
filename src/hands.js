@@ -5,8 +5,9 @@ const WASM = 'node_modules/@mediapipe/tasks-vision/wasm';
 const MODEL = 'models/hand_landmarker.task';
 
 export class HandCamera {
-  constructor(video) {
+  constructor(video, { facingMode = 'environment' } = {}) {
     this.video = video;
+    this.facingMode = facingMode;
     this.landmarker = null;
     this.stream = null;
     this.running = false;
@@ -23,7 +24,15 @@ export class HandCamera {
   async start(onStatus = () => {}) {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('This browser cannot access a camera (getUserMedia missing — use https or localhost).');
     onStatus('Requesting camera…');
-    this.stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user', frameRate: { ideal: 30 } }, audio: false });
+    this.stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        facingMode: { ideal: this.facingMode },
+        frameRate: { ideal: 30 }
+      },
+      audio: false
+    });
     this.video.srcObject = this.stream;
     this.video.muted = true; this.video.playsInline = true;
     await this.video.play();
@@ -41,7 +50,7 @@ export class HandCamera {
     onStatus('');
   }
 
-  /** Returns undefined when there is no new camera frame, else a list of hands (mirrored, selfie view), possibly empty. */
+  /** Returns undefined when there is no new camera frame, else a list of hands, possibly empty. */
   poll() {
     const v = this.video;
     if (!this.running || v.readyState < 2 || v.currentTime === this.lastVideoTime) return undefined;
@@ -55,7 +64,8 @@ export class HandCamera {
     this.frames++; this._n++;
     const now = performance.now();
     if (now - this._t > 1000) { this.fps = (this._n * 1000) / (now - this._t); this._n = 0; this._t = now; }
-    return (res.landmarks || []).map((lm) => lm.map((p) => [1 - p.x, p.y]));   // mirror x: selfie view
+    const isUser = this.facingMode === 'user';
+    return (res.landmarks || []).map((lm) => lm.map((p) => [isUser ? 1 - p.x : p.x, p.y]));
   }
 
   stop() {

@@ -145,3 +145,38 @@ kbd { font-family: inherit; font-size: 11px; padding: 1px 6px; border: 1px solid
   .big-title { right: 16px; top: 70px; }
   .help { width: calc(100vw - 32px); }
 }
+
+/* ---------- VR Mode */
+body.vr-mode .brand,
+body.vr-mode #panel,
+body.vr-mode #catalog,
+body.vr-mode #partCard,
+body.vr-mode #quiz,
+body.vr-mode #bigTitle,
+body.vr-mode #help,
+body.vr-mode .stats {
+  display: none !important;
+}
+
+body.vr-mode .top-right {
+  top: 10px;
+  right: 10px;
+}
+
+body.vr-mode .top-right .icons button:not(#bVR):not(#bCalib) {
+  display: none !important;
+}
+
+/* Central divider line for VR Cardboard lenses alignment */
+body.vr-mode::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+  z-index: 99;
+}
+

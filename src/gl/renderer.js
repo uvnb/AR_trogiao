@@ -163,11 +163,44 @@ export class Renderer {
     this.cur = 1 - this.cur;
   }
 
-  /** d: { projView, globeMvp, color, globeColor, tintMix, alpha, trails, trailLen, pointPx, gain, video: {has, dim, mirror} } */
+  /** d: { projView, globeMvp, color, globeColor, tintMix, alpha, trails, trailLen, pointPx, gain, video: {has, dim, mirror}, stereo, projViewL, projViewR, globeMvpL, globeMvpR } */
   draw(d) {
     const gl = this.gl, W = this.canvas.width, H = this.canvas.height;
-    gl.viewport(0, 0, W, H);
     gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+
+    if (d.stereo && d.projViewL && d.projViewR) {
+      const halfW = Math.floor(W / 2);
+      // Left eye (left half)
+      gl.viewport(0, 0, halfW, H);
+      this._drawEye({
+        ...d,
+        projView: d.projViewL,
+        globeMvp: d.globeMvpL || d.globeMvp,
+        viewportWidth: halfW,
+        viewportHeight: H
+      });
+
+      // Right eye (right half)
+      gl.viewport(halfW, 0, W - halfW, H);
+      this._drawEye({
+        ...d,
+        projView: d.projViewR,
+        globeMvp: d.globeMvpR || d.globeMvp,
+        viewportWidth: W - halfW,
+        viewportHeight: H
+      });
+    } else {
+      gl.viewport(0, 0, W, H);
+      this._drawEye({
+        ...d,
+        viewportWidth: W,
+        viewportHeight: H
+      });
+    }
+  }
+
+  _drawEye(d) {
+    const gl = this.gl, W = d.viewportWidth, H = d.viewportHeight;
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
 
     const B = this.pBg;                       // background: webcam (cover-fit, mirrored) or deep-space gradient
