@@ -894,15 +894,45 @@ function boot() {
   const start = document.getElementById('start');
   const hideStart = () => { start.hidden = true; };
   const bVR = document.getElementById('bStartVR');
-  if (bVR) {
-    bVR.onclick = async () => {
-      hideStart();
+
+  const onStartVR = async (e) => {
+    e?.preventDefault();
+    hideStart();
+    try {
       await app.startCamera('environment');
-      await app.toggleVR();
-    };
+    } catch (err) {
+      console.warn('VR camera error:', err);
+    }
+    await app.toggleVR();
+  };
+
+  const onStartCam = async (e) => {
+    e?.preventDefault();
+    hideStart();
+    await app.startCamera('user');
+  };
+
+  const onStartNoCam = (e) => {
+    e?.preventDefault();
+    hideStart();
+    app.toast('Keyboard: Space = snap · F = fist · O = open · E = explode · D = demo · H = help');
+  };
+
+  if (bVR) {
+    bVR.addEventListener('click', onStartVR);
+    bVR.addEventListener('touchend', onStartVR);
   }
-  document.getElementById('bStartCam').onclick = async () => { if (await app.startCamera('user')) hideStart(); };
-  document.getElementById('bStartNoCam').onclick = () => { hideStart(); app.toast('Keyboard: Space = snap · F = fist · O = open · E = explode · D = demo · H = help'); };
+  const bCam = document.getElementById('bStartCam');
+  if (bCam) {
+    bCam.addEventListener('click', onStartCam);
+    bCam.addEventListener('touchend', onStartCam);
+  }
+  const bNoCam = document.getElementById('bStartNoCam');
+  if (bNoCam) {
+    bNoCam.addEventListener('click', onStartNoCam);
+    bNoCam.addEventListener('touchend', onStartNoCam);
+  }
+
   if (CFG.autostart === 'camera') { hideStart(); app.startCamera(); }
   else if (CFG.autostart === 'nocamera' || CFG.manual) hideStart();
 

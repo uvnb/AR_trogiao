@@ -127,17 +127,17 @@ kbd { font-family: inherit; font-size: 11px; padding: 1px 6px; border: 1px solid
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 /* ---------- start overlay */
-.start { position: fixed; inset: 0; display: grid; place-items: center; z-index: 10; background: radial-gradient(ellipse at 60% 40%, rgba(20, 40, 70, 0.55), rgba(0, 0, 0, 0.82)); padding: 16px; }
+.start { position: fixed; inset: 0; display: grid; place-items: center; z-index: 10; background: radial-gradient(ellipse at 60% 40%, rgba(20, 40, 70, 0.55), rgba(0, 0, 0, 0.82)); padding: 12px; overflow-y: auto; }
 .start[hidden] { display: none; }
-.start-card { max-width: 560px; padding: 28px 30px; text-align: center; }
-.start-card h1 { margin: 4px 0 6px; font-size: 32px; letter-spacing: 0.03em; }
-.start-card p { color: var(--muted); margin: 0 0 12px; line-height: 1.5; }
-.steps { text-align: left; color: var(--muted); line-height: 1.55; margin: 0 0 18px; padding-left: 22px; }
+.start-card { max-width: 560px; max-height: 92vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px 24px; text-align: center; }
+.start-card h1 { margin: 4px 0 6px; font-size: 26px; letter-spacing: 0.03em; }
+.start-card p { color: var(--muted); margin: 0 0 10px; line-height: 1.4; font-size: 13px; }
+.steps { text-align: left; color: var(--muted); line-height: 1.4; margin: 0 0 14px; padding-left: 20px; font-size: 13px; }
 .steps b { color: var(--text); }
-.start-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-.start-buttons button { padding: 11px 18px; font-size: 15px; }
+.start-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
+.start-buttons button { padding: 11px 18px; font-size: 15px; cursor: pointer; touch-action: manipulation; }
 .start-buttons .primary { background: linear-gradient(90deg, rgba(102, 224, 255, 0.35), rgba(255, 209, 102, 0.3)); border-color: rgba(102, 224, 255, 0.6); font-weight: 700; }
-.start-msg { min-height: 1.4em; margin-top: 12px !important; color: var(--accent-2) !important; }
+.start-msg { min-height: 1.4em; margin-top: 8px !important; color: var(--accent-2) !important; font-size: 13px; }
 
 @media (max-width: 820px) {
   .panel { width: calc(100vw - 32px); left: 16px; top: auto; bottom: 86px; max-height: 38vh; }
